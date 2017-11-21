@@ -1120,7 +1120,7 @@ ngx_rtmp_live_av_to_net(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     ngx_uint_t                      csidx;
     uint32_t                        delta;
     ngx_rtmp_live_chunk_stream_t   *cs;
-    ngx_int_t                       vasync;
+    //ngx_int_t                       vasync;
 #ifdef NGX_DEBUG
     const char                     *type_s;
 
@@ -1152,7 +1152,7 @@ ngx_rtmp_live_av_to_net(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
         ngx_rtmp_live_start(s);
     }
 
-     
+    /*
     // 视音频不同步的厉害就断链
     vasync = ((ngx_int_t)ctx->cs[1].timestamp - (ngx_int_t)ctx->cs[0].timestamp);
     if( vasync >= 100 || vasync <= -100 ){
@@ -1163,7 +1163,7 @@ ngx_rtmp_live_av_to_net(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
         ngx_rtmp_finalize_session(s);
         return NGX_ERROR;
     }
-    
+    */
     
     ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
                    "live: %s packet timestamp=%uD",
@@ -1442,6 +1442,12 @@ ngx_rtmp_live_av_to_net(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
             continue;
         }
 
+        //ngx_rtmp_update_bandwidth(&ctx->stream->bw_in, h->mlen);
+        ngx_rtmp_update_bandwidth(h->type == NGX_RTMP_MSG_AUDIO ?
+                                &ss->bw_out_audio :
+                                &ss->bw_out_video,
+                                h->mlen);
+        
         cs->timestamp += delta;
         ++peers;
         if (h->type == NGX_RTMP_MSG_AUDIO) {
@@ -1770,6 +1776,12 @@ ngx_rtmp_live_av_to_play(ngx_rtmp_live_stream_t *stream, ngx_rtmp_header_t *h,
             cs->dropped += delta;
             continue;
         }
+        
+        //ngx_rtmp_update_bandwidth(&ctx->stream->bw_in, h->mlen);
+        ngx_rtmp_update_bandwidth(h->type == NGX_RTMP_MSG_AUDIO ?
+                                &ss->bw_out_audio :
+                                &ss->bw_out_video,
+                                h->mlen);
         
         cs->timestamp += delta;
         // STREAM_STATE   监控输出的数据量
