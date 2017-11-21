@@ -23,6 +23,8 @@ static void * ngx_rtmp_stat_create_loc_conf(ngx_conf_t *cf);
 static char * ngx_rtmp_stat_merge_loc_conf(ngx_conf_t *cf,
         void *parent, void *child);
 
+static ngx_int_t ngx_rtmp_relay_switch_handler(ngx_http_request_t *r);
+static char *ngx_rtmp_relay_switch(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
 static time_t                       start_time;
 
@@ -68,6 +70,15 @@ static ngx_command_t  ngx_rtmp_stat_commands[] = {
         NGX_HTTP_LOC_CONF_OFFSET,
         offsetof(ngx_rtmp_stat_loc_conf_t, stylesheet),
         NULL },
+
+    // RELAY
+    { ngx_string("relay_switch"),
+        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
+        ngx_rtmp_relay_switch,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        NULL },
+    //  RELAY
 
     ngx_null_command
 };
@@ -1572,6 +1583,76 @@ ngx_rtmp_stat(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return ngx_conf_set_bitmask_slot(cf, cmd, conf);
 }
 
+static char *
+ngx_rtmp_relay_switch(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    printf("ngx_rtmp_stat_module ngx_rtmp_relay_switch\n");
+    ngx_http_core_loc_conf_t  *clcf;
+
+    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+    clcf->handler=ngx_rtmp_relay_switch_handler;
+    return NGX_CONF_OK;
+}
+
+static ngx_int_t
+ngx_rtmp_relay_switch_handler(ngx_http_request_t *r)
+{
+    printf("ngx_rtmp_stat_module ngx_rtmp_relay_switch_handler\n");
+    //请求方法必须是GET或者HEAD，否则返回405 \NOT ALLOWED
+    if(!(r->method &(NGX_HTTP_GET|NGX_HTTP_HEAD)))
+    {
+        return NGX_HTTP_NOT_ALLOWED;
+    }
+
+    //丢弃请求中的包体
+    ngx_int_t rc=ngx_http_discard_request_body(r);
+    if(NGX_OK!=rc)
+    {
+        return rc;
+    }
+
+    char szArgs[1024] = {'\0'};
+    memcpy(szArgs, r->args.data, r->args.len);
+
+    printf("ngx_rtmp_stat_module ngx_rtmp_relay_switch_handler url args:%s len:%ld\n", r->args.data, r->args.len);
+    printf("ngx_rtmp_stat_module data:%s\n", szArgs);
+
+
+
+    //设置返回的Content-Type ngx_string是一个宏可以初始化data字段和len字段
+    ngx_str_t type=ngx_string("text/plain");
+    ngx_str_t response=ngx_string("Hello World");
+    //响应包体内容和状态码设置
+    r->headers_out.status=NGX_HTTP_OK;
+    r->headers_out.content_length_n=response.len;
+    r->headers_out.content_type=type;
+
+    //发送http头部
+    rc=ngx_http_send_header(r);
+    if(rc==NGX_ERROR || rc>NGX_OK || r->header_only)
+    {
+        return rc;
+    }
+    //构造ngx_buf_t结构体准备发送报文
+    ngx_buf_t *b;
+    b=ngx_create_temp_buf(r->pool,response.len);
+    if(NULL==b)
+    {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    //拷贝响应报文
+    ngx_memcpy(b->pos,response.data,response.len);
+    b->last=b->pos+response.len;
+    //声明这是最后一块缓冲区
+    b->last_buf=1;
+    
+    //构造发送时的ngx_chain_t结构体
+    ngx_chain_t out;
+    out.buf=b;
+    out.next=NULL;
+    //发送响应，结束后HTTP框架会调用ngx_http_finalize_request方法结束请求
+    return ngx_http_output_filter(r,&out);
+}
 
 static ngx_int_t
 ngx_rtmp_stat_postconfiguration(ngx_conf_t *cf)
