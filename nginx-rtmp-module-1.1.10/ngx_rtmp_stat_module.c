@@ -1197,11 +1197,54 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
             nclients = 0;
             codec = NULL;
             NGX_RTMP_STAT_L(",\"clients\":\r\n[");
-            for (ctx = stream->ctx; ctx; ctx = ctx->next, ++nclients) {
-                if( nclients != 0 )
-                    NGX_RTMP_STAT_L(",");
-                    
+            //for (ctx = stream->ctx; ctx; ctx = ctx->next, ++nclients) {
+            if ( (stream && stream->lacf && stream->lacf->push_cache && stream->push_cache_head)
+                    || (stream && stream->active) ) {
+                //if( nclients != 0 )
+                //    NGX_RTMP_STAT_L(",");
+                
                 NGX_RTMP_STAT_L("{\r\n\"dropped\":");
+                NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf),
+                            "%ui", stream->ndropped) - buf);                  
+
+                NGX_RTMP_STAT_L(",\"avsync\":");
+                if (!lacf->interleave) {
+                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                                "%D", stream->cs[1].timestamp -
+                                stream->cs[0].timestamp) - bbuf);
+                }
+                
+                codec = &stream->codec_ctx;    
+                NGX_RTMP_STAT_L(",");
+                ngx_rtmp_stat_bw_json(r, lll, &stream->bw_out_audio, "out_audio",
+                        NGX_RTMP_STAT_BW);
+                NGX_RTMP_STAT_L(",");
+                ngx_rtmp_stat_bw_json(r, lll, &stream->bw_out_video, "out_video",
+                        NGX_RTMP_STAT_BW);
+                NGX_RTMP_STAT_L(",");
+                ngx_rtmp_stat_publish_json(r, lll, codec);
+
+                //不知道是什么 
+                NGX_RTMP_STAT_L(",\"timestamp\":");
+                NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                            "%D", stream->current_time) - bbuf); 
+                NGX_RTMP_STAT_L(",\"relay\":0");
+                NGX_RTMP_STAT_L(",\"publishing\":1");
+                NGX_RTMP_STAT_L(",\"is_relay\":1");
+                NGX_RTMP_STAT_L("\r\n}");
+                
+                ++nclients;
+            }
+
+            // 针对play
+            for (ctx = stream->ctx; ctx; ctx = ctx->next) {
+                if( ctx->publishing )
+                    continue;
+                ++nclients;
+
+                s = ctx->session;
+
+                NGX_RTMP_STAT_L(",{\r\n\"dropped\":");
                 NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf),
                             "%ui", ctx->ndropped) - buf);                  
 
@@ -1211,48 +1254,27 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                                 "%D", ctx->cs[1].timestamp -
                                 ctx->cs[0].timestamp) - bbuf);
                 }
-
-                if (ctx->publishing) {
-                    codec = &stream->codec_ctx;    
-                    NGX_RTMP_STAT_L(",");
-                    ngx_rtmp_stat_bw_json(r, lll, &stream->bw_out_audio, "out_audio",
-                            NGX_RTMP_STAT_BW);
-                    NGX_RTMP_STAT_L(",");
-                    ngx_rtmp_stat_bw_json(r, lll, &stream->bw_out_video, "out_video",
-                    NGX_RTMP_STAT_BW);
-                    NGX_RTMP_STAT_L(",");
-                    ngx_rtmp_stat_publish_json(r, lll, codec);
-                  
-                    //不知道是什么 
-                    NGX_RTMP_STAT_L(",\"timestamp\":");
-                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
-                                "%D", stream->current_time) - bbuf); 
-                    NGX_RTMP_STAT_L(",\"relay\":0");
-                    NGX_RTMP_STAT_L(",\"publishing\":1");
+                
+                NGX_RTMP_STAT_L(",");
+                ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_audio, "out_audio",
+                        NGX_RTMP_STAT_BW);
+                NGX_RTMP_STAT_L(",");
+                ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_video, "out_video",
+                        NGX_RTMP_STAT_BW);
+                NGX_RTMP_STAT_L(",");
+                ngx_rtmp_stat_client_json(r, lll, s);
+                
+                NGX_RTMP_STAT_L(",\"timestamp\":");
+                NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                            "%D", s->current_time) - bbuf);
+                NGX_RTMP_STAT_L(",\"relay\":");
+                NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                            "%D", s->relay) - bbuf);
+                NGX_RTMP_STAT_L(",\"publishing\":0");
+                if (s->relay)
                     NGX_RTMP_STAT_L(",\"is_relay\":1");
-                } else {
-                    s = ctx->session;
-                    NGX_RTMP_STAT_L(",");
-                    ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_audio, "out_audio",
-                            NGX_RTMP_STAT_BW);
-                    NGX_RTMP_STAT_L(",");
-                    ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_video, "out_video",
-                            NGX_RTMP_STAT_BW);
-                    NGX_RTMP_STAT_L(",");
-                    ngx_rtmp_stat_client_json(r, lll, s);
-                    
-                    NGX_RTMP_STAT_L(",\"timestamp\":");
-                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
-                                "%D", s->current_time) - bbuf);
-                    NGX_RTMP_STAT_L(",\"relay\":");
-                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
-                                "%D", s->relay) - bbuf);
-                    NGX_RTMP_STAT_L(",\"publishing\":0");
-                    if (s->relay)
-                        NGX_RTMP_STAT_L(",\"is_relay\":1");
-                    else 
-                        NGX_RTMP_STAT_L(",\"is_relay\":0");
-                }
+                else 
+                    NGX_RTMP_STAT_L(",\"is_relay\":0");
                 
                 if (ctx->active) {
                     NGX_RTMP_STAT_L(",\"active\":1");
