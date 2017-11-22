@@ -1135,8 +1135,8 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
     ngx_rtmp_stream_codec_ctx_t    *codec;
     ngx_rtmp_live_ctx_t            *ctx;
     ngx_rtmp_session_t             *s;
-    ngx_int_t                       n;
-    ngx_uint_t                      nstreams, nclients, total_nclients;
+    ngx_int_t                       n, iserror;
+    ngx_uint_t                      nstreams, nclients, total_nclients, nerrors;
     u_char                          buf[NGX_INT_T_LEN];
     u_char                          bbuf[NGX_INT32_LEN];
     //ngx_rtmp_stat_loc_conf_t       *slcf;
@@ -1263,13 +1263,29 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 NGX_RTMP_STAT_L("\r\n}");
             }
             total_nclients += nclients;
-
-///////////////////
-            if (!stream->is_relay_start) {
-                t = lacf->pushes.elts;
-                for (rn = 0; rn < lacf->pushes.nelts; ++rn, ++t) {
-                    target = *t;
-                    if( nclients != 0 )
+            
+            //if (!stream->is_relay_start) {
+            t = lacf->pushes.elts;
+            nerrors = 0;
+            for (rn = 0; rn < lacf->pushes.nelts; ++rn, ++t) {
+                iserror = 1;
+                target = *t;
+                for (ctx = stream->ctx; ctx; ctx = ctx->next) {
+                    if (ctx->publishing) {
+                        printf("publishing config:%s\n", target->url.url.data);
+                        continue;
+                    } else {
+                        s = ctx->session;
+                        if (s && ngx_strcmp(s->connection->addr_text.data, &target->url.url.data) != 0) {
+                            printf("playing \nonline:%s \nconfig:%s\n", s->connection->addr_text.data, target->url.url.data);
+                            iserror = 0;                            
+                            break;
+                        }
+                    }
+                }
+                
+                if (iserror) {
+                    if( nclients+rn != 0 )
                         NGX_RTMP_STAT_L(",");
                     NGX_RTMP_STAT_L("{\"dropped\":0");
                     NGX_RTMP_STAT_L(",\"avsync\":0");
@@ -1286,10 +1302,9 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                     NGX_RTMP_STAT_L(",\"active\":0");
                     NGX_RTMP_STAT_L(",\"is_relay\":0");
                     NGX_RTMP_STAT_L("}");
-                    //printf("## url:%s uri:%s app:%s tc_url:%s page_url:%s swf_url:%s:\n", target->url.url.data, target->url.uri.data, target->app.data, target->tc_url.data, target->page_url.data, target->swf_url.data);
                 }
             }
-//////////////////
+            //}
             
             NGX_RTMP_STAT_L("]");
             
