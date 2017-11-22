@@ -815,7 +815,8 @@ ngx_rtmp_stat_live(ngx_http_request_t *r, ngx_chain_t ***lll,
                 ++nclients;
 
                 s = ctx->session;
-                 
+                //printf("############ relay:%d nclients:%ld\n", s->relay, nclients);
+                
                 if (slcf->stat & NGX_RTMP_STAT_CLIENTS) {
                     NGX_RTMP_STAT_L("<client>");
 
@@ -1192,7 +1193,7 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
             // cache status  
             NGX_RTMP_STAT_L(",");
             ngx_rtmp_stat_push_cache_json(r, lll, stream);
-            
+
             nclients = 0;
             codec = NULL;
             NGX_RTMP_STAT_L(",\"clients\":\r\n[");
@@ -1210,6 +1211,7 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                                 "%D", ctx->cs[1].timestamp -
                                 ctx->cs[0].timestamp) - bbuf);
                 }
+
                 if (ctx->publishing) {
                     codec = &stream->codec_ctx;    
                     NGX_RTMP_STAT_L(",");
@@ -1225,7 +1227,9 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                     NGX_RTMP_STAT_L(",\"timestamp\":");
                     NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
                                 "%D", stream->current_time) - bbuf); 
+                    NGX_RTMP_STAT_L(",\"relay\":0");
                     NGX_RTMP_STAT_L(",\"publishing\":1");
+                    NGX_RTMP_STAT_L(",\"is_relay\":1");
                 } else {
                     s = ctx->session;
                     NGX_RTMP_STAT_L(",");
@@ -1240,7 +1244,14 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                     NGX_RTMP_STAT_L(",\"timestamp\":");
                     NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
                                 "%D", s->current_time) - bbuf);
+                    NGX_RTMP_STAT_L(",\"relay\":");
+                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                                "%D", s->relay) - bbuf);
                     NGX_RTMP_STAT_L(",\"publishing\":0");
+                    if (s->relay)
+                        NGX_RTMP_STAT_L(",\"is_relay\":1");
+                    else 
+                        NGX_RTMP_STAT_L(",\"is_relay\":0");
                 }
                 
                 if (ctx->active) {
@@ -1248,7 +1259,6 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 } else {
                     NGX_RTMP_STAT_L(",\"active\":0");
                 }
-                NGX_RTMP_STAT_L(",\"is_relay\":1");
                 
                 NGX_RTMP_STAT_L("\r\n}");
             }
@@ -1259,9 +1269,22 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 t = lacf->pushes.elts;
                 for (rn = 0; rn < lacf->pushes.nelts; ++rn, ++t) {
                     target = *t;
-                    NGX_RTMP_STAT_L(",{\"address\":\"");
+                    if( nclients != 0 )
+                        NGX_RTMP_STAT_L(",");
+                    NGX_RTMP_STAT_L("{\"dropped\":0");
+                    NGX_RTMP_STAT_L(",\"avsync\":0");
+                    NGX_RTMP_STAT_L(",\"bw_out_audio\":0");
+                    NGX_RTMP_STAT_L(",\"bw_out_video\":0");
+                    NGX_RTMP_STAT_L(",\"id\":\"0\"");
+                    NGX_RTMP_STAT_L(",\"address\":\"");
                     NGX_RTMP_STAT_ECS(target->url.url.data);
-                    NGX_RTMP_STAT_L("\",\"is_relay\":0");
+                    NGX_RTMP_STAT_L("\",\"time\":0");
+                    NGX_RTMP_STAT_L(",\"flashver\":\"ngx-config-relay\"");
+                    NGX_RTMP_STAT_L(",\"timestamp\":0");
+                    NGX_RTMP_STAT_L(",\"publishing\":0");
+                    NGX_RTMP_STAT_L(",\"relay\":1");
+                    NGX_RTMP_STAT_L(",\"active\":0");
+                    NGX_RTMP_STAT_L(",\"is_relay\":0");
                     NGX_RTMP_STAT_L("}");
                     //printf("## url:%s uri:%s app:%s tc_url:%s page_url:%s swf_url:%s:\n", target->url.url.data, target->url.uri.data, target->app.data, target->tc_url.data, target->page_url.data, target->swf_url.data);
                 }
@@ -1417,7 +1440,7 @@ ngx_rtmp_stat_server_json(ngx_http_request_t *r, ngx_chain_t ***lll,
 static ngx_int_t
 ngx_rtmp_stat_handler_json(ngx_http_request_t *r)
 {
-    printf("SSSSS ngx_rtmp_stat_json_handler\n");
+    printf("SSSSS ngx_rtmp_stat_handler_json\n");
     //ngx_rtmp_live_stream_t         *stream;
     ngx_rtmp_stat_loc_conf_t        *slcf;
     ngx_rtmp_core_main_conf_t       *cmcf;
@@ -1461,7 +1484,7 @@ ngx_rtmp_stat_handler_json(ngx_http_request_t *r)
 
     NGX_RTMP_STAT_L(",\"stat_url\":\"");
     NGX_RTMP_STAT_ES(&stat);
-    
+
     NGX_RTMP_STAT_L("\",\"servers\":\r\n[");
     cscf = cmcf->servers.elts;
     for (n = 0; n < cmcf->servers.nelts; ++n, ++cscf) {
@@ -1629,13 +1652,7 @@ ngx_rtmp_stat(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     ngx_http_core_loc_conf_t  *clcf;
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-    if( 0 ){
-        //clcf->handler = ngx_rtmp_stat_handler_cache;
-        // json 暂时屏蔽
-        clcf->handler = ngx_rtmp_stat_handler_json;
-    } else {
-        clcf->handler = ngx_rtmp_stat_handler;
-    }
+    clcf->handler = ngx_rtmp_stat_handler;
 
     return ngx_conf_set_bitmask_slot(cf, cmd, conf);
 }
@@ -1667,7 +1684,7 @@ ngx_rtmp_relay_application(ngx_http_request_t *r, ngx_rtmp_core_app_conf_t *cacf
 static void
 ngx_rtmp_relay_server(ngx_http_request_t *r, ngx_rtmp_core_srv_conf_t *cscf, ngx_uint_t ctrl)
 {
-    printf("SSSSS ngx_rtmp_relay_server switch:%ld\n", ctrl);
+    //printf("SSSSS ngx_rtmp_relay_server switch:%ld\n", ctrl);
     ngx_rtmp_core_app_conf_t      **cacf;
     size_t                          n;
 
@@ -1680,7 +1697,7 @@ ngx_rtmp_relay_server(ngx_http_request_t *r, ngx_rtmp_core_srv_conf_t *cscf, ngx
 static ngx_int_t
 ngx_rtmp_relay_switch_handler(ngx_http_request_t *r)
 {
-    //printf("SSSSS ngx_rtmp_stat_handler\n");
+    printf("SSSSS ngx_rtmp_relay_switch_handler\n");
     ngx_rtmp_stat_loc_conf_t       *slcf;
     ngx_rtmp_core_main_conf_t      *cmcf;
     ngx_rtmp_core_srv_conf_t      **cscf;
@@ -1711,11 +1728,11 @@ ngx_rtmp_relay_switch_handler(ngx_http_request_t *r)
         return rc;
     }
 
-    printf("ngx_rtmp_stat_module uri:%s url:%s server:%s\n", r->uri.data, r->unparsed_uri.data, r->headers_in.server.data);
+    //printf("ngx_rtmp_stat_module uri:%s url:%s server:%s\n", r->uri.data, r->unparsed_uri.data, r->headers_in.server.data);
     
     char szArgs[1024] = {'\0'};
     memcpy(szArgs, r->args.data, r->args.len);
-    printf("ngx_rtmp_stat_module data:%s\n", szArgs);
+    //printf("ngx_rtmp_stat_module data:%s\n", szArgs);
     if (!ngx_strcmp(szArgs, "switch=1")) {
         rctrl = 1;
     } else if (!ngx_strcmp(szArgs, "switch=0")) {
@@ -1729,7 +1746,7 @@ ngx_rtmp_relay_switch_handler(ngx_http_request_t *r)
      
     //设置返回的Content-Type ngx_string是一个宏可以初始化data字段和len字段
     ngx_str_t type=ngx_string("text/plain");
-    ngx_str_t response=ngx_string("Hello World");
+    ngx_str_t response=ngx_string("Success");
     //响应包体内容和状态码设置
     r->headers_out.status = NGX_HTTP_OK;
     r->headers_out.content_length_n = response.len;
@@ -1748,7 +1765,7 @@ ngx_rtmp_relay_switch_handler(ngx_http_request_t *r)
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
     //拷贝响应报文
-    ngx_memcpy(b->pos,response.data, response.len);
+    ngx_memcpy(b->pos, response.data, response.len);
     b->last = b->pos + response.len;
     //声明这是最后一块缓冲区
     b->last_buf = 1;
@@ -1759,7 +1776,7 @@ ngx_rtmp_relay_switch_handler(ngx_http_request_t *r)
     out.next = NULL;
     //发送响应，结束后HTTP框架会调用ngx_http_finalize_request方法结束请求
     return ngx_http_output_filter(r, &out);
-
+        
 error:
     r->headers_out.status = NGX_HTTP_INTERNAL_SERVER_ERROR;
     r->headers_out.content_length_n = 0;

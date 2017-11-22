@@ -3051,7 +3051,7 @@ ngx_rtmp_stream_relay_publish(ngx_rtmp_live_stream_t *stream, ngx_rtmp_publish_t
     t = lacf->pushes.elts;
     for (n = 0; n < lacf->pushes.nelts; ++n, ++t) {
         target = *t;
-        printf("## url:%s uri:%s app:%s tc_url:%s page_url:%s swf_url:%s:\n", target->url.url.data, target->url.uri.data, target->app.data, target->tc_url.data, target->page_url.data, target->swf_url.data);
+        //printf("## url:%s uri:%s app:%s tc_url:%s page_url:%s swf_url:%s:\n", target->url.url.data, target->url.uri.data, target->app.data, target->tc_url.data, target->page_url.data, target->swf_url.data);
 
         if (target->name.len && (name.len != target->name.len ||
                     ngx_memcmp(name.data, target->name.data, name.len)))
