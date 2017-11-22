@@ -1298,7 +1298,9 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                         continue;
                     } else {
                         s = ctx->session;
-                        if (s && ngx_strcmp(s->connection->addr_text.data, &target->url.url.data) != 0) {
+                        if (s &&
+                                s->connection->addr_text.len == target->url.url.len &&
+                                ngx_strcmp(s->connection->addr_text.data, target->url.url.data) == 0) {
                             printf("playing \nonline:%s \nconfig:%s\n", s->connection->addr_text.data, target->url.url.data);
                             iserror = 0;                            
                             break;
@@ -1307,6 +1309,7 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 }
                 
                 if (iserror) {
+                    nerrors++;
                     if( nclients+rn != 0 )
                         NGX_RTMP_STAT_L(",");
                     NGX_RTMP_STAT_L("{\"dropped\":0");
