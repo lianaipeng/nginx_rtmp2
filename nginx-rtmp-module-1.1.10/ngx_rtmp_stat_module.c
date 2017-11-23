@@ -1129,7 +1129,7 @@ ngx_rtmp_stat_bw_json(ngx_http_request_t *r, ngx_chain_t ***lll,
 
 static void
 ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
-                ngx_rtmp_live_app_conf_t *lacf)
+                ngx_rtmp_live_app_conf_t *lacf, ngx_uint_t *is_relay)
 {
     ngx_rtmp_live_stream_t         *stream;
     ngx_rtmp_stream_codec_ctx_t    *codec;
@@ -1152,9 +1152,10 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
     if (!lacf->live) {
         return;
     }
-
+    //*is_relay = lacf->relay_cache_ctrl;
+    
     //slcf = ngx_http_get_module_loc_conf(r, ngx_rtmp_stat_module);
-
+    
     total_nclients = 0;
     nstreams = 0;
     NGX_RTMP_STAT_L("{\r\n\"streams\":\r\n[");
@@ -1230,7 +1231,7 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                             "%D", stream->current_time) - bbuf); 
                 NGX_RTMP_STAT_L(",\"relay\":0");
                 NGX_RTMP_STAT_L(",\"publishing\":1");
-                NGX_RTMP_STAT_L(",\"is_relay\":1");
+                //NGX_RTMP_STAT_L(",\"is_relay\":1");
                 NGX_RTMP_STAT_L("\r\n}");
                 
                 ++nclients;
@@ -1271,11 +1272,12 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
                             "%D", s->relay) - bbuf);
                 NGX_RTMP_STAT_L(",\"publishing\":0");
+                /*
                 if (s->relay)
                     NGX_RTMP_STAT_L(",\"is_relay\":1");
                 else 
                     NGX_RTMP_STAT_L(",\"is_relay\":0");
-                
+                */
                 if (ctx->active) {
                     NGX_RTMP_STAT_L(",\"active\":1");
                 } else {
@@ -1298,12 +1300,13 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                         continue;
                     } else {
                         s = ctx->session;
-                        if (s &&
-                                s->connection->addr_text.len == target->url.url.len &&
-                                ngx_strcmp(s->connection->addr_text.data, target->url.url.data) == 0) {
-                            printf("playing \nonline:%s \nconfig:%s\n", s->connection->addr_text.data, target->url.url.data);
-                            iserror = 0;                            
-                            break;
+                        if (s && s->connection && target) {
+                            ngx_int_t cmplen = s->connection->addr_text.len >= target->url.url.len ? target->url.url.len : s->connection->addr_text.len;
+                            if (ngx_strncmp(s->connection->addr_text.data, target->url.url.data, cmplen) == 0) {
+                                printf("playing \nonline:%s config:%s\n", s->connection->addr_text.data, target->url.url.data);
+                                iserror = 0;
+                                break;
+                            }
                         }
                     }
                 }
@@ -1325,7 +1328,7 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                     NGX_RTMP_STAT_L(",\"publishing\":0");
                     NGX_RTMP_STAT_L(",\"relay\":1");
                     NGX_RTMP_STAT_L(",\"active\":0");
-                    NGX_RTMP_STAT_L(",\"is_relay\":0");
+                    //NGX_RTMP_STAT_L(",\"is_relay\":0");
                     NGX_RTMP_STAT_L("}");
                 }
             }
@@ -1424,10 +1427,12 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 (ngx_int_t) total_nclients) - buf);
 
     NGX_RTMP_STAT_L("\r\n}");
+
+    *is_relay = lacf->relay_cache_ctrl;
 }
 static void
 ngx_rtmp_stat_application_json(ngx_http_request_t *r, ngx_chain_t ***lll,
-        ngx_rtmp_core_app_conf_t *cacf)
+        ngx_rtmp_core_app_conf_t *cacf, ngx_uint_t* is_relay)
 {
     if(cacf == NULL){
         return;
@@ -1445,7 +1450,7 @@ ngx_rtmp_stat_application_json(ngx_http_request_t *r, ngx_chain_t ***lll,
     NGX_RTMP_STAT_L(",\"lives\":\r\n[");
     if (slcf->rstat & NGX_RTMP_STAT_LIVE) {
         ngx_rtmp_stat_live_json(r, lll, 
-                cacf->app_conf[ngx_rtmp_live_module.ctx_index]);
+                cacf->app_conf[ngx_rtmp_live_module.ctx_index], is_relay);
     }
 
     if (slcf->stat & NGX_RTMP_STAT_PLAY) {
@@ -1458,7 +1463,7 @@ ngx_rtmp_stat_application_json(ngx_http_request_t *r, ngx_chain_t ***lll,
 }
 static void
 ngx_rtmp_stat_server_json(ngx_http_request_t *r, ngx_chain_t ***lll,
-                 ngx_rtmp_core_srv_conf_t *cscf)
+                 ngx_rtmp_core_srv_conf_t *cscf, ngx_uint_t *is_relay)
 {
     ngx_rtmp_core_app_conf_t      **cacf;
     size_t                          n;
@@ -1467,7 +1472,7 @@ ngx_rtmp_stat_server_json(ngx_http_request_t *r, ngx_chain_t ***lll,
     NGX_RTMP_STAT_L("{\r\n\"applications\":\r\n[");
     cacf = cscf->applications.elts;
     for (n = 0; n < cscf->applications.nelts; ++n, ++cacf) {
-        ngx_rtmp_stat_application_json(r, lll, *cacf);
+        ngx_rtmp_stat_application_json(r, lll, *cacf, is_relay);
     }
     NGX_RTMP_STAT_L("]");
     
@@ -1525,12 +1530,19 @@ ngx_rtmp_stat_handler_json(ngx_http_request_t *r)
     NGX_RTMP_STAT_L(",\"stat_url\":\"");
     NGX_RTMP_STAT_ES(&stat);
 
+    ngx_uint_t  is_relay = 0;
+
     NGX_RTMP_STAT_L("\",\"servers\":\r\n[");
     cscf = cmcf->servers.elts;
     for (n = 0; n < cmcf->servers.nelts; ++n, ++cscf) {
-        ngx_rtmp_stat_server_json(r, lll, *cscf);
+        ngx_rtmp_stat_server_json(r, lll, *cscf, &is_relay);
     }
+    
     NGX_RTMP_STAT_L("]");
+
+    NGX_RTMP_STAT_L(",\"is_relay\":");
+    NGX_RTMP_STAT(nbuf, ngx_snprintf(nbuf, sizeof(nbuf),
+                "%ui", is_relay) - nbuf);
 
     NGX_RTMP_STAT_L("\r\n}");
     
@@ -1703,7 +1715,7 @@ ngx_rtmp_relay_application(ngx_http_request_t *r, ngx_rtmp_core_app_conf_t *cacf
     ngx_rtmp_stat_loc_conf_t        *slcf;
 
     ngx_rtmp_live_app_conf_t        *lacf;
-    ngx_rtmp_play_app_conf_t        *pacf;
+    //ngx_rtmp_play_app_conf_t        *pacf;
 
     slcf = ngx_http_get_module_loc_conf(r, ngx_rtmp_stat_module);
 
@@ -1717,7 +1729,7 @@ ngx_rtmp_relay_application(ngx_http_request_t *r, ngx_rtmp_core_app_conf_t *cacf
     if (slcf->rswitch & NGX_RTMP_STAT_PLAY) {
         //printf("ngx_rtmp_stat_module ngx_rtmp_relay_application ngx_rtmp_play_module:%ld\n", lacf->relay_cache_ctrl);
         //ngx_rtmp_stat_play(r, lll, cacf->app_conf[ngx_rtmp_play_module.ctx_index]);
-        pacf = cacf->app_conf[ngx_rtmp_play_module.ctx_index];
+        //pacf = cacf->app_conf[ngx_rtmp_play_module.ctx_index];
     }
 }
 
