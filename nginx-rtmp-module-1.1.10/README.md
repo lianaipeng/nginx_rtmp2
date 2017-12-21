@@ -352,6 +352,11 @@ rtmp_auto_push directive.
             listen 1935;
             
             application myapp {
+                # 鉴权是否开启
+                notify_auth on;
+                # 鉴权文件路径 格式如[stream_name?key_name=key_value;]
+                notify_auth_file /home/MOMO/servers/nginx-1.10.0/sbin/auth.txt;
+                
                 live on;
 
                 # 是否允许空闲stream存在（默认为允许on），如果不允许：
@@ -372,8 +377,6 @@ rtmp_auto_push directive.
                 # 缓存帧数 必须大于0
                 push_cache_frame_num 256;
                 
-                # 转推缓存 开启/关闭
-                relay_cache on;
                 # 缓存转推地址 当缓存功能开启时使用，否则:
                 # push 172.16.69.5:1935/live/;
                 stream_push 172.16.69.5:1935/live/;

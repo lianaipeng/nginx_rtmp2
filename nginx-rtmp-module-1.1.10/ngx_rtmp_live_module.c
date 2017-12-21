@@ -186,13 +186,13 @@ static ngx_command_t  ngx_rtmp_live_commands[] = {
         0,
         NULL },
 
+#if HAND
     { ngx_string("relay_cache"),
       NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_RTMP_APP_CONF_OFFSET,
       offsetof(ngx_rtmp_live_app_conf_t, relay_cache),
       NULL },
-#if HAND
     { ngx_string("relay_cache_poll_len"),
         NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
         ngx_conf_set_msec_slot,
@@ -274,9 +274,9 @@ ngx_rtmp_live_create_app_conf(ngx_conf_t *cf)
     lacf->push_reconnect = NGX_CONF_UNSET_MSEC;
     lacf->stream_push_reconnect = NGX_CONF_UNSET_MSEC;
 
+#if HAND
     // 手动开启转推是否开启
     lacf->relay_cache  = NGX_CONF_UNSET;
-#if HAND
     lacf->relay_cache_poll_len = NGX_CONF_UNSET_MSEC;
 #endif    
 

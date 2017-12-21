@@ -73,6 +73,9 @@ typedef struct {
     ngx_msec_t                                  update_timeout;
     ngx_flag_t                                  update_strict;
     ngx_flag_t                                  relay_redirect;
+    
+    ngx_flag_t                                  auth;
+    ngx_str_t                                   auth_file;
 } ngx_rtmp_notify_app_conf_t;
 
 
@@ -191,6 +194,20 @@ static ngx_command_t  ngx_rtmp_notify_commands[] = {
       offsetof(ngx_rtmp_notify_app_conf_t, relay_redirect),
       NULL },
 
+    { ngx_string("notify_auth"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_notify_app_conf_t, auth),
+      NULL },
+
+    { ngx_string("notify_auth_file"),
+      NGX_RTMP_MAIN_CONF|NGX_RTMP_SRV_CONF|NGX_RTMP_APP_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_RTMP_APP_CONF_OFFSET,
+      offsetof(ngx_rtmp_notify_app_conf_t, auth_file),
+      NULL },
+
       ngx_null_command
 };
 
@@ -242,6 +259,7 @@ ngx_rtmp_notify_create_app_conf(ngx_conf_t *cf)
     nacf->update_timeout = NGX_CONF_UNSET_MSEC;
     nacf->update_strict = NGX_CONF_UNSET;
     nacf->relay_redirect = NGX_CONF_UNSET;
+    nacf->auth = NGX_CONF_UNSET;
 
     return nacf;
 }
@@ -271,6 +289,7 @@ ngx_rtmp_notify_merge_app_conf(ngx_conf_t *cf, void *parent, void *child)
                               30000);
     ngx_conf_merge_value(conf->update_strict, prev->update_strict, 0);
     ngx_conf_merge_value(conf->relay_redirect, prev->relay_redirect, 0);
+    ngx_conf_merge_value(conf->auth , prev->auth, 0);
 
     return NGX_CONF_OK;
 }
@@ -1360,8 +1379,98 @@ next:
 
 
 static ngx_int_t
+ngx_rtmp_cmd_publish_auth(ngx_rtmp_session_t *s, const char *name, const char *args)
+{
+    ngx_rtmp_notify_app_conf_t     *nacf;
+    nacf = ngx_rtmp_get_module_app_conf(s, ngx_rtmp_notify_module);
+    if (nacf == NULL) {
+        return -1;
+    }
+    
+    if (!nacf->auth) {
+        return 0;
+    }
+    
+    if (ngx_strlen(args) == 0) {
+        printf("args is null auth[%s][%s]\n", name, args);
+        return -1;
+    }
+    
+#define AUTH_FILE_LEN 1024
+    ngx_file_t        file;
+    ssize_t           n, on, tn, cn;
+    u_char           *p;
+    u_char           tori[AUTH_FILE_LEN];
+    u_char           tbuf[AUTH_FILE_LEN];
+    u_char           cbuf[AUTH_FILE_LEN];
+    ngx_int_t        ret = -1;
+    
+    // 如果转推开启 则需要判断标志文件
+    ngx_memzero(tori, sizeof(AUTH_FILE_LEN));
+    ngx_memzero(tbuf, sizeof(AUTH_FILE_LEN));
+    ngx_memzero(cbuf, sizeof(AUTH_FILE_LEN));
+    ngx_memzero(&file, sizeof(ngx_file_t));
+    
+    p = tori;
+    ngx_memcpy(p, name, ngx_strlen(name));
+    p += ngx_strlen(name);
+    ngx_memcpy(p, "?", 1);
+    p += 1;
+    ngx_memcpy(p, args, ngx_strlen(args));
+    p += ngx_strlen(args);
+    on = p-tori;
+    printf("CCCCC len:%ld tori:%s\n", on, tori);
+    
+    file.name = nacf->auth_file;
+    file.log = NULL;
+    if ( file.name.len == 0 ) {
+        printf("NNNNN file not exit[%s]\n", file.name.data);
+        return ret;
+    }
+    file.fd = ngx_open_file(file.name.data, NGX_FILE_RDONLY,
+            NGX_FILE_OPEN, NGX_FILE_DEFAULT_ACCESS);
+    if (file.fd == NGX_INVALID_FILE) {
+        printf("LLLLL ngx_open_file NGX_INVALID_FILE\n");
+        return ret;
+    }
+    
+    n = ngx_read_file(&file, tbuf, AUTH_FILE_LEN, 0);
+    tn = 0;
+    cn = 0;
+    while (tn < n) {
+        if (tbuf[tn] == ';' || tbuf[tn] == '\n') {
+            cbuf[cn] = '\0';
+            printf("##### %ld %s:one\n", cn, cbuf);
+            
+            if( cn == on && !ngx_strncmp(cbuf, tori, cn>on?on:cn) ){
+                ret = 0;
+                printf("CCCCC auth Success!\n");
+                goto exit;
+            }
+            cn = 0;
+        } else {
+            cbuf[cn++] = tbuf[tn];
+        }
+        tn++;
+    }
+exit:
+    
+    if (ngx_close_file(file.fd) == NGX_FILE_ERROR) { 
+        printf("LLLLL ngx_close_file NGX_FILE_ERROR\n");
+    }
+    return ret;
+}
+
+static ngx_int_t
 ngx_rtmp_notify_publish(ngx_rtmp_session_t *s, ngx_rtmp_publish_t *v)
 {
+    int ret = ngx_rtmp_cmd_publish_auth(s, (const char *)v->name, (const char *)v->args);
+    if (ret != 0) {
+        printf("publish auth error: name='%s' args='%s' type=%s silent=%d\n",
+                v->name, v->args, v->type, v->silent);
+        return NGX_ERROR;       
+    }
+
     ngx_rtmp_notify_app_conf_t     *nacf;
     ngx_rtmp_netcall_init_t         ci;
     ngx_url_t                      *url;

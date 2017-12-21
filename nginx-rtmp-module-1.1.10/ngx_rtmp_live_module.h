@@ -226,9 +226,9 @@ struct ngx_rtmp_live_app_conf_s{
     ngx_msec_t                  push_reconnect;
     ngx_msec_t                  pull_reconnect;
     
+#if HAND
     // RELAY_CACHE  转推缓存
     ngx_flag_t                          relay_cache;   // 是否开启转推 
-#if HAND
     ngx_msec_t                          relay_cache_poll_len;   // 手动控制转推 的轮巡时长 
     ngx_str_t                           relay_cache_file;       // 手动控制转推 的标志文件位置
     ngx_event_t                         relay_cache_event;      // 监控手动转推是否开启
