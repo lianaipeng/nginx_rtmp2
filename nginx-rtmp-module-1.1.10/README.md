@@ -314,22 +314,15 @@ rtmp_auto_push directive.
                 # and put the full directory path here
                 root /path/to/dynamic.xsl/;
             }
-            
-            
-            location /hls {
-                # Serve HLS fragments
-                types {
-                    application/vnd.apple.mpegurl m3u8;
-                    video/mp2t ts;
-                }
-                root /tmp;
-                add_header Cache-Control no-cache;
-            }
 
-            location /dash {
-                # Serve DASH fragments
-                root /tmp;
-                add_header Cache-Control no-cache;
+            # 转推开关接口
+            location /relay_switch {
+                relay_switch all;
+            }
+            
+            # 转推状态返回接口
+            location /relay_stat {
+                relay_stat all;
             }
         }
     }
@@ -381,10 +374,6 @@ rtmp_auto_push directive.
                 
                 # 转推缓存 开启/关闭
                 relay_cache on;
-                # 转推缓存手动控制的标志文件 轮训时长
-                relay_cache_poll_len 3s;
-                # 转推缓存手动控制的标志文件 文件路径和文件名(参数说明跳至文件尾)
-                relay_cache_file /home/MOMO/servers/nginx-1.10.0/sbin/state.txt;
                 # 缓存转推地址 当缓存功能开启时使用，否则:
                 # push 172.16.69.5:1935/live/;
                 stream_push 172.16.69.5:1935/live/;
@@ -397,11 +386,3 @@ rtmp_auto_push directive.
             }
         }
     }
-
-###########
-relay_cache_file文件参数说明:
-格式：relay_cache_ctrl [on|off];
-说明：当relay_cache开启时，会根据relay_cache_poll_len定义的时长，轮询relay_cache_file。如果relay_cache_ctrl on;则开启转推， 否则为关闭。
-      当relay_cache关闭时，转推相关参数不起作用。
-
-

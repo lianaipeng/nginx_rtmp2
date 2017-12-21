@@ -1235,104 +1235,105 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 NGX_RTMP_STAT_L("\r\n}");
                 
                 ++nclients;
-            }
 
-            // 针对play
-            for (ctx = stream->ctx; ctx; ctx = ctx->next) {
-                if( ctx->publishing )
-                    continue;
-                ++nclients;
-
-                s = ctx->session;
-
-                NGX_RTMP_STAT_L(",{\r\n\"dropped\":");
-                NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf),
-                            "%ui", ctx->ndropped) - buf);                  
-
-                NGX_RTMP_STAT_L(",\"avsync\":");
-                if (!lacf->interleave) {
-                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
-                                "%D", ctx->cs[1].timestamp -
-                                ctx->cs[0].timestamp) - bbuf);
-                }
-                
-                NGX_RTMP_STAT_L(",");
-                ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_audio, "out_audio",
-                        NGX_RTMP_STAT_BW);
-                NGX_RTMP_STAT_L(",");
-                ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_video, "out_video",
-                        NGX_RTMP_STAT_BW);
-                NGX_RTMP_STAT_L(",");
-                ngx_rtmp_stat_client_json(r, lll, s);
-                
-                NGX_RTMP_STAT_L(",\"timestamp\":");
-                NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
-                            "%D", s->current_time) - bbuf);
-                NGX_RTMP_STAT_L(",\"relay\":");
-                NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
-                            "%D", s->relay) - bbuf);
-                NGX_RTMP_STAT_L(",\"publishing\":0");
-                /*
-                if (s->relay)
-                    NGX_RTMP_STAT_L(",\"is_relay\":1");
-                else 
-                    NGX_RTMP_STAT_L(",\"is_relay\":0");
-                */
-                if (ctx->active) {
-                    NGX_RTMP_STAT_L(",\"active\":1");
-                } else {
-                    NGX_RTMP_STAT_L(",\"active\":0");
-                }
-                
-                NGX_RTMP_STAT_L("\r\n}");
-            }
-            total_nclients += nclients;
-            
-            //if (!stream->is_relay_start) {
-            t = lacf->pushes.elts;
-            nerrors = 0;
-            for (rn = 0; rn < lacf->pushes.nelts; ++rn, ++t) {
-                iserror = 1;
-                target = *t;
+                // 针对play
                 for (ctx = stream->ctx; ctx; ctx = ctx->next) {
-                    if (ctx->publishing) {
-                        printf("publishing config:%s\n", target->url.url.data);
+                    if( ctx->publishing )
                         continue;
+                    ++nclients;
+
+                    s = ctx->session;
+
+                    NGX_RTMP_STAT_L(",{\r\n\"dropped\":");
+                    NGX_RTMP_STAT(buf, ngx_snprintf(buf, sizeof(buf),
+                                "%ui", ctx->ndropped) - buf);                  
+
+                    NGX_RTMP_STAT_L(",\"avsync\":");
+                    if (!lacf->interleave) {
+                        NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                                    "%D", ctx->cs[1].timestamp -
+                                    ctx->cs[0].timestamp) - bbuf);
+                    }
+
+                    NGX_RTMP_STAT_L(",");
+                    ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_audio, "out_audio",
+                            NGX_RTMP_STAT_BW);
+                    NGX_RTMP_STAT_L(",");
+                    ngx_rtmp_stat_bw_json(r, lll, &s->bw_out_video, "out_video",
+                            NGX_RTMP_STAT_BW);
+                    NGX_RTMP_STAT_L(",");
+                    ngx_rtmp_stat_client_json(r, lll, s);
+
+                    NGX_RTMP_STAT_L(",\"timestamp\":");
+                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                                "%D", s->current_time) - bbuf);
+                    NGX_RTMP_STAT_L(",\"relay\":");
+                    NGX_RTMP_STAT(bbuf, ngx_snprintf(bbuf, sizeof(bbuf),
+                                "%D", s->relay) - bbuf);
+                    NGX_RTMP_STAT_L(",\"publishing\":0");
+                    /*
+                       if (s->relay)
+                       NGX_RTMP_STAT_L(",\"is_relay\":1");
+                       else 
+                       NGX_RTMP_STAT_L(",\"is_relay\":0");
+                       */
+                    if (ctx->active) {
+                        NGX_RTMP_STAT_L(",\"active\":1");
                     } else {
-                        s = ctx->session;
-                        if (s && s->connection && target) {
-                            ngx_int_t cmplen = s->connection->addr_text.len >= target->url.url.len ? target->url.url.len : s->connection->addr_text.len;
-                            if (ngx_strncmp(s->connection->addr_text.data, target->url.url.data, cmplen) == 0) {
-                                printf("playing \nonline:%s config:%s\n", s->connection->addr_text.data, target->url.url.data);
-                                iserror = 0;
-                                break;
+                        NGX_RTMP_STAT_L(",\"active\":0");
+                    }
+
+                    NGX_RTMP_STAT_L("\r\n}");
+                }
+                total_nclients += nclients;
+
+                // 针对配置
+                //if (!stream->is_relay_start) {
+                t = lacf->pushes.elts;
+                nerrors = 0;
+                for (rn = 0; rn < lacf->pushes.nelts; ++rn, ++t) {
+                    iserror = 1;
+                    target = *t;
+                    for (ctx = stream->ctx; ctx; ctx = ctx->next) {
+                        if (ctx->publishing) {
+                            printf("publishing config:%s\n", target->url.url.data);
+                            continue;
+                        } else {
+                            s = ctx->session;
+                            if (s && s->connection && target) {
+                                ngx_int_t cmplen = s->connection->addr_text.len >= target->url.url.len ? target->url.url.len : s->connection->addr_text.len;
+                                if (ngx_strncmp(s->connection->addr_text.data, target->url.url.data, cmplen) == 0) {
+                                    printf("playing \nonline:%s config:%s\n", s->connection->addr_text.data, target->url.url.data);
+                                    iserror = 0;                            
+                                    break;
+                                }
                             }
                         }
                     }
+
+                    if (iserror) {
+                        nerrors++;
+                        if( nclients+rn != 0 )
+                            NGX_RTMP_STAT_L(",");
+                        NGX_RTMP_STAT_L("{\"dropped\":0");
+                        NGX_RTMP_STAT_L(",\"avsync\":0");
+                        NGX_RTMP_STAT_L(",\"bw_out_audio\":0");
+                        NGX_RTMP_STAT_L(",\"bw_out_video\":0");
+                        NGX_RTMP_STAT_L(",\"id\":\"0\"");
+                        NGX_RTMP_STAT_L(",\"address\":\"");
+                        NGX_RTMP_STAT_ECS(target->url.url.data);
+                        NGX_RTMP_STAT_L("\",\"time\":0");
+                        NGX_RTMP_STAT_L(",\"flashver\":\"ngx-config-relay\"");
+                        NGX_RTMP_STAT_L(",\"timestamp\":0");
+                        NGX_RTMP_STAT_L(",\"publishing\":0");
+                        NGX_RTMP_STAT_L(",\"relay\":1");
+                        NGX_RTMP_STAT_L(",\"active\":0");
+                        //NGX_RTMP_STAT_L(",\"is_relay\":0");
+                        NGX_RTMP_STAT_L("}");
+                    }
                 }
-                
-                if (iserror) {
-                    nerrors++;
-                    if( nclients+rn != 0 )
-                        NGX_RTMP_STAT_L(",");
-                    NGX_RTMP_STAT_L("{\"dropped\":0");
-                    NGX_RTMP_STAT_L(",\"avsync\":0");
-                    NGX_RTMP_STAT_L(",\"bw_out_audio\":0");
-                    NGX_RTMP_STAT_L(",\"bw_out_video\":0");
-                    NGX_RTMP_STAT_L(",\"id\":\"0\"");
-                    NGX_RTMP_STAT_L(",\"address\":\"");
-                    NGX_RTMP_STAT_ECS(target->url.url.data);
-                    NGX_RTMP_STAT_L("\",\"time\":0");
-                    NGX_RTMP_STAT_L(",\"flashver\":\"ngx-config-relay\"");
-                    NGX_RTMP_STAT_L(",\"timestamp\":0");
-                    NGX_RTMP_STAT_L(",\"publishing\":0");
-                    NGX_RTMP_STAT_L(",\"relay\":1");
-                    NGX_RTMP_STAT_L(",\"active\":0");
-                    //NGX_RTMP_STAT_L(",\"is_relay\":0");
-                    NGX_RTMP_STAT_L("}");
-                }
+                //}
             }
-            //}
             
             NGX_RTMP_STAT_L("]");
             

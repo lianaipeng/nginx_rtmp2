@@ -308,6 +308,9 @@ ngx_rtmp_close_session_handler(ngx_event_t *e)
 void
 ngx_rtmp_finalize_session(ngx_rtmp_session_t *s)
 {
+    if (s == NULL) 
+        return;
+
     ngx_event_t        *e;
     ngx_connection_t   *c;
 

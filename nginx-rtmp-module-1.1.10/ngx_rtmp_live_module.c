@@ -1473,13 +1473,14 @@ ngx_rtmp_live_av_to_net(ngx_rtmp_session_t *s, ngx_rtmp_header_t *h,
     if (acopkt) {
         ngx_rtmp_free_shared_chain(cscf, acopkt);
     }
-
+    
+    /*
     ngx_rtmp_update_bandwidth(&ctx->stream->bw_in, h->mlen);
     ngx_rtmp_update_bandwidth(h->type == NGX_RTMP_MSG_AUDIO ?
                               &ctx->stream->bw_in_audio :
                               &ctx->stream->bw_in_video,
                               h->mlen);
-
+    */
     ngx_rtmp_update_bandwidth(&ctx->stream->bw_out, h->mlen * peers);
     ngx_rtmp_update_bandwidth(h->type == NGX_RTMP_MSG_AUDIO ?
                               &ctx->stream->bw_out_audio :
@@ -1802,12 +1803,13 @@ ngx_rtmp_live_av_to_play(ngx_rtmp_live_stream_t *stream, ngx_rtmp_header_t *h,
         ngx_rtmp_free_shared_chain(cscf, apkt);
     }
 
+    /*
     ngx_rtmp_update_bandwidth(&stream->bw_in, h->mlen);
     ngx_rtmp_update_bandwidth(h->type == NGX_RTMP_MSG_AUDIO ?
                               &stream->bw_in_audio :
                               &stream->bw_in_video,
                               h->mlen);
-
+    */
     ngx_rtmp_update_bandwidth(&stream->bw_out, h->mlen * peers);
     ngx_rtmp_update_bandwidth(h->type == NGX_RTMP_MSG_AUDIO ?
                               &stream->bw_out_audio :

@@ -1467,7 +1467,7 @@ ngx_rtmp_relay_push_pull(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         u->url.data += 7;
         u->url.len  -= 7;
     }
-    printf("$$$$$$$$$$$$$ %s\n", u->url.data);
+    //printf("$$$$$$$$$$$$$ %s\n", u->url.data);
 
     if (ngx_parse_url(cf->pool, u) != NGX_OK) {
         if (u->err) {

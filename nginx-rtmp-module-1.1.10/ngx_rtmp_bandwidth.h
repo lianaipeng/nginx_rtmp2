@@ -17,7 +17,7 @@
 
 
 typedef struct {
-    uint64_t            bytes;
+    uint64_t            bytes;          /* 总的字节数 */
     uint64_t            bandwidth;      /* bytes/sec */
 
     time_t              intl_end;
