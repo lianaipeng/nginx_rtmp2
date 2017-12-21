@@ -386,3 +386,5 @@ rtmp_auto_push directive.
             }
         }
     }
+    
+    上行推流规则：rtmp://127.0.0.1:1936/myapp/sdarc4gyz[?momo=d189d395f41e4327939e60dae4200c0b]

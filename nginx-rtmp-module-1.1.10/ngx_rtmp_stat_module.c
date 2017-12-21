@@ -1303,7 +1303,7 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                             if (s && s->connection && target) {
                                 ngx_int_t cmplen = s->connection->addr_text.len >= target->url.url.len ? target->url.url.len : s->connection->addr_text.len;
                                 if (ngx_strncmp(s->connection->addr_text.data, target->url.url.data, cmplen) == 0) {
-                                    printf("playing \nonline:%s config:%s\n", s->connection->addr_text.data, target->url.url.data);
+                                    printf("playing \nonline:%ld %s \nconfig:%ld %s\n", s->connection->addr_text.len, s->connection->addr_text.data, target->url.url.len, target->url.url.data);
                                     iserror = 0;                            
                                     break;
                                 }

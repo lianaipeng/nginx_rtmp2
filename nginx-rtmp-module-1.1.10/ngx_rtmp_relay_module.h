@@ -17,6 +17,7 @@ typedef struct {
     ngx_url_t                       url;
     ngx_str_t                       app;
     ngx_str_t                       name;
+    ngx_str_t                       args;  // publish 传入参数
     ngx_str_t                       tc_url;
     ngx_str_t                       page_url;
     ngx_str_t                       swf_url;
@@ -36,6 +37,7 @@ typedef struct ngx_rtmp_relay_ctx_s ngx_rtmp_relay_ctx_t;
 
 struct ngx_rtmp_relay_ctx_s {
     ngx_str_t                       name;
+    ngx_str_t                       args;
     ngx_str_t                       url;
     ngx_log_t                       log;
     ngx_rtmp_session_t             *session;
@@ -63,9 +65,9 @@ struct ngx_rtmp_relay_ctx_s {
 extern ngx_module_t                 ngx_rtmp_relay_module;
 
 
-ngx_int_t ngx_rtmp_relay_pull(ngx_rtmp_session_t *s, ngx_str_t *name,
+ngx_int_t ngx_rtmp_relay_pull(ngx_rtmp_session_t *s, ngx_str_t *name, ngx_str_t *args,
                               ngx_rtmp_relay_target_t *target);
-ngx_int_t ngx_rtmp_relay_push(ngx_rtmp_session_t *s, ngx_str_t *name,
+ngx_int_t ngx_rtmp_relay_push(ngx_rtmp_session_t *s, ngx_str_t *name, ngx_str_t *args,
                               ngx_rtmp_relay_target_t *target);
 
 
@@ -73,7 +75,7 @@ void
 ngx_rtmp_relay_static_pull_reconnect(ngx_event_t *ev);
 
 ngx_rtmp_relay_ctx_t *
-ngx_rtmp_relay_create_connection(ngx_rtmp_conf_ctx_t *cctx, ngx_str_t* name,
+ngx_rtmp_relay_create_connection(ngx_rtmp_conf_ctx_t *cctx, ngx_str_t* name, ngx_str_t* args,
         ngx_rtmp_relay_target_t *target);
 
 #endif /* _NGX_RTMP_RELAY_H_INCLUDED_ */

@@ -2855,17 +2855,17 @@ ngx_rtmp_stream_relay_copy_str(ngx_pool_t *pool, ngx_str_t *dst, ngx_str_t *src)
 
 
 typedef ngx_rtmp_relay_ctx_t * (* ngx_rtmp_stream_relay_create_ctx_pt)
-        (ngx_rtmp_live_stream_t *stream, ngx_rtmp_session_t *s, ngx_str_t *name, ngx_rtmp_relay_target_t *target);
+        (ngx_rtmp_live_stream_t *stream, ngx_rtmp_session_t *s, ngx_str_t *name, ngx_str_t *args, ngx_rtmp_relay_target_t *target);
 
 static ngx_int_t
-ngx_rtmp_stream_relay_create(ngx_rtmp_live_stream_t *stream, ngx_str_t *name,
+ngx_rtmp_stream_relay_create(ngx_rtmp_live_stream_t *stream, ngx_str_t *name, ngx_str_t *args,
         ngx_rtmp_relay_target_t *target,
         ngx_rtmp_stream_relay_create_ctx_pt create_publish_ctx,
         ngx_rtmp_stream_relay_create_ctx_pt create_play_ctx)
 {
     ngx_rtmp_relay_ctx_t            *play_ctx, *publish_ctx;
 
-    play_ctx = create_play_ctx(stream, stream->session, name, target);
+    play_ctx = create_play_ctx(stream, stream->session, name, args, target);
     if (play_ctx == NULL) {
         return NGX_ERROR;
     }
@@ -2877,7 +2877,7 @@ ngx_rtmp_stream_relay_create(ngx_rtmp_live_stream_t *stream, ngx_str_t *name,
         return NGX_OK;
     }
     
-    publish_ctx = create_publish_ctx(stream, stream->session, name, target);
+    publish_ctx = create_publish_ctx(stream, stream->session, name, args, target);
     if ( publish_ctx == NULL ) {
         ngx_rtmp_finalize_session(play_ctx->session);
         return NGX_ERROR;
@@ -2894,11 +2894,12 @@ static void
 ngx_rtmp_stream_relay_push_reconnect(ngx_event_t *ev);
 
 static ngx_rtmp_relay_ctx_t *
-ngx_rtmp_stream_relay_create_local_ctx(ngx_rtmp_live_stream_t *stream,ngx_rtmp_session_t *s, ngx_str_t *name,
+ngx_rtmp_stream_relay_create_local_ctx(ngx_rtmp_live_stream_t *stream,ngx_rtmp_session_t *s, ngx_str_t *name, ngx_str_t *args,
         ngx_rtmp_relay_target_t *target)
 {
+    printf("ngx_rtmp_stream_relay_create_local_ctx len:%ld name:%s len:%ld args:%s\n", name->len, name->data, args->len, args->data);
     ngx_rtmp_relay_ctx_t           *ctx;
-
+    
     ctx = stream->relay_ctx;
      
     if (ctx == NULL) {
@@ -2924,12 +2925,20 @@ ngx_rtmp_stream_relay_create_local_ctx(ngx_rtmp_live_stream_t *stream,ngx_rtmp_s
         return NULL;
     }
 
+    if (ngx_rtmp_stream_relay_copy_str(stream->pool, &ctx->args, args)
+            != NGX_OK)
+    {
+        return NULL;
+    }
+    
     return ctx;
 }
 
 static ngx_rtmp_relay_ctx_t *
-ngx_rtmp_stream_relay_create_remote_ctx(ngx_rtmp_live_stream_t *stream, ngx_rtmp_session_t *s, ngx_str_t* name, ngx_rtmp_relay_target_t *target)
+ngx_rtmp_stream_relay_create_remote_ctx(ngx_rtmp_live_stream_t *stream, ngx_rtmp_session_t *s, ngx_str_t* name, ngx_str_t *args, 
+        ngx_rtmp_relay_target_t *target)
 {
+    printf("ngx_rtmp_stream_relay_create_remote_ctx len:%ld name:%s len:%ld args:%s\n", name->len, name->data, args->len, args->data);
     ngx_rtmp_conf_ctx_t         cctx;
     /*
     cctx.app_conf = s->app_conf;
@@ -2939,13 +2948,14 @@ ngx_rtmp_stream_relay_create_remote_ctx(ngx_rtmp_live_stream_t *stream, ngx_rtmp
     cctx.app_conf = stream->app_conf;
     cctx.srv_conf = stream->srv_conf;
     cctx.main_conf = stream->main_conf;
-    return ngx_rtmp_relay_create_connection(&cctx, name, target);
+    return ngx_rtmp_relay_create_connection(&cctx, name, args, target);
 }
 
 static ngx_int_t 
-ngx_rtmp_stream_relay_push(ngx_rtmp_live_stream_t *stream, ngx_str_t *name, ngx_rtmp_relay_target_t *target)
+ngx_rtmp_stream_relay_push(ngx_rtmp_live_stream_t *stream, ngx_str_t *name, ngx_str_t *args,
+        ngx_rtmp_relay_target_t *target)
 {
-    return ngx_rtmp_stream_relay_create(stream, name, target,
+    return ngx_rtmp_stream_relay_create(stream, name, args, target,
             ngx_rtmp_stream_relay_create_local_ctx,
             ngx_rtmp_stream_relay_create_remote_ctx);
 }
@@ -2953,7 +2963,7 @@ ngx_rtmp_stream_relay_push(ngx_rtmp_live_stream_t *stream, ngx_str_t *name, ngx_
 static void
 ngx_rtmp_stream_relay_push_reconnect(ngx_event_t *ev)
 {
-    //printf("LLLLL ngx_rtmp_stream_relay_push_reconnect\n");
+    printf("LLLLL ngx_rtmp_stream_relay_push_reconnect\n");
     
     ngx_rtmp_live_app_conf_t      *lacf;
     ngx_rtmp_relay_ctx_t           *ctx, *pctx;
@@ -3012,7 +3022,7 @@ ngx_rtmp_stream_relay_push_reconnect(ngx_event_t *ev)
         }
             
         //在这里找到对应记录链接的转发次数
-        if (ngx_rtmp_stream_relay_push(stream, &ctx->name, target) == NGX_OK) {
+        if (ngx_rtmp_stream_relay_push(stream, &ctx->name, &ctx->args, target) == NGX_OK) {
             continue;
         }
 
@@ -3030,6 +3040,7 @@ ngx_rtmp_stream_relay_publish(ngx_rtmp_live_stream_t *stream, ngx_rtmp_publish_t
     ngx_rtmp_live_app_conf_t      *lacf;
     ngx_rtmp_relay_target_t        *target, **t;
     ngx_str_t                       name;
+    ngx_str_t                       args;
     size_t                          n;
 
     ngx_rtmp_relay_ctx_t     *ctx;
@@ -3050,6 +3061,10 @@ ngx_rtmp_stream_relay_publish(ngx_rtmp_live_stream_t *stream, ngx_rtmp_publish_t
     
     name.len = ngx_strlen(v->name);
     name.data = v->name;
+    args.len = ngx_strlen(v->args);
+    args.data = v->args;
+    printf("ngx_rtmp_stream_relay_publish len:%ld args:%s\n", args.len, args.data);
+
     t = lacf->pushes.elts;
     for (n = 0; n < lacf->pushes.nelts; ++n, ++t) {
         target = *t;
@@ -3061,7 +3076,7 @@ ngx_rtmp_stream_relay_publish(ngx_rtmp_live_stream_t *stream, ngx_rtmp_publish_t
             continue;
         }
         
-        if (ngx_rtmp_stream_relay_push(stream, &name, target) == NGX_OK) {
+        if (ngx_rtmp_stream_relay_push(stream, &name, &args, target) == NGX_OK) {
             continue;
         }
 
