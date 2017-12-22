@@ -566,7 +566,7 @@ ngx_rtmp_live_start(ngx_rtmp_session_t *s)
 static void
 ngx_rtmp_live_stop(ngx_rtmp_session_t *s)
 {
-    //printf("TTTTT ngx_rtmp_live_stop\n");
+    printf("TTTTT ngx_rtmp_live_stop\n");
     ngx_rtmp_core_srv_conf_t   *cscf;
     ngx_rtmp_live_app_conf_t   *lacf;
     ngx_chain_t                *control;
@@ -743,7 +743,7 @@ ngx_rtmp_live_join(ngx_rtmp_session_t *s, u_char *name, unsigned publisher)
 static void 
 ngx_rtmp_live_close_plays(ngx_rtmp_live_stream_t *stream)
 {
-    printf("LLLLL ngx_rtmp_live_close_plays\n");
+    //printf("LLLLL ngx_rtmp_live_close_plays\n");
     ngx_rtmp_session_t             *ss;
     ngx_rtmp_live_ctx_t            *pctx;
     if( !stream )
@@ -2925,6 +2925,7 @@ ngx_rtmp_stream_relay_create_local_ctx(ngx_rtmp_live_stream_t *stream,ngx_rtmp_s
         return NULL;
     }
 
+    printf("ngx_rtmp_stream_relay_create_local_ctx init len:%ld args:%s len:%ld args:%s\n", args->len, args->data, ctx->args.len, ctx->args.data);
     if (ngx_rtmp_stream_relay_copy_str(stream->pool, &ctx->args, args)
             != NGX_OK)
     {
@@ -2938,7 +2939,7 @@ static ngx_rtmp_relay_ctx_t *
 ngx_rtmp_stream_relay_create_remote_ctx(ngx_rtmp_live_stream_t *stream, ngx_rtmp_session_t *s, ngx_str_t* name, ngx_str_t *args, 
         ngx_rtmp_relay_target_t *target)
 {
-    printf("ngx_rtmp_stream_relay_create_remote_ctx len:%ld name:%s len:%ld args:%s\n", name->len, name->data, args->len, args->data);
+    //printf("ngx_rtmp_stream_relay_create_remote_ctx len:%ld name:%s len:%ld args:%s\n", name->len, name->data, args->len, args->data);
     ngx_rtmp_conf_ctx_t         cctx;
     /*
     cctx.app_conf = s->app_conf;
@@ -3036,7 +3037,7 @@ ngx_rtmp_stream_relay_push_reconnect(ngx_event_t *ev)
 static void
 ngx_rtmp_stream_relay_publish(ngx_rtmp_live_stream_t *stream, ngx_rtmp_publish_t *v)
 {
-    //printf("LLLLL ngx_rtmp_stream_relay_publish\n");
+    printf("LLLLL ngx_rtmp_stream_relay_publish\n");
     ngx_rtmp_live_app_conf_t      *lacf;
     ngx_rtmp_relay_target_t        *target, **t;
     ngx_str_t                       name;
