@@ -1217,10 +1217,10 @@ ngx_rtmp_stat_live_json(ngx_http_request_t *r, ngx_chain_t ***lll,
                 
                 codec = &stream->codec_ctx;    
                 NGX_RTMP_STAT_L(",");
-                ngx_rtmp_stat_bw_json(r, lll, &stream->bw_out_audio, "out_audio",
+                ngx_rtmp_stat_bw_json(r, lll, &stream->bw_in_audio, "out_audio",
                         NGX_RTMP_STAT_BW);
                 NGX_RTMP_STAT_L(",");
-                ngx_rtmp_stat_bw_json(r, lll, &stream->bw_out_video, "out_video",
+                ngx_rtmp_stat_bw_json(r, lll, &stream->bw_in_video, "out_video",
                         NGX_RTMP_STAT_BW);
                 NGX_RTMP_STAT_L(",");
                 ngx_rtmp_stat_publish_json(r, lll, codec);

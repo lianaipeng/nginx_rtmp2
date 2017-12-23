@@ -344,6 +344,8 @@ rtmp_auto_push directive.
 
 
 ###### 缓存相关配置
+    # 添加日志
+    error_log logs/error.log info;  
     rtmp {
         # publish 链接空闲5s 就断开
         drop_idle_publisher 5s;

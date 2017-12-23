@@ -1029,7 +1029,8 @@ ngx_rtmp_live_close_stream(ngx_rtmp_session_t *s, ngx_rtmp_close_stream_t *v)
             goto next;
         }
     }
-    printf("------------------- close all plays\n");
+    //printf("------------------- close all plays\n");
+    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "ngx_rtmp_live_close_stream close all plays");
     
     ngx_log_debug1(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
             "live: delete empty stream '%s'",

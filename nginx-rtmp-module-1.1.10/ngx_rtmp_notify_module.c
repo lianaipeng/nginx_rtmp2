@@ -1392,7 +1392,8 @@ ngx_rtmp_cmd_publish_auth(ngx_rtmp_session_t *s, const char *name, const char *a
     }
     
     if (ngx_strlen(args) == 0) {
-        printf("args is null auth[%s][%s]\n", name, args);
+        //printf("args is null auth[%s][%s]\n", name, args);
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "ngx_rtmp_cmd_publish_auth name[%V] args[%V] is null", &name, &args);
         return -1;
     }
     
@@ -1419,18 +1420,20 @@ ngx_rtmp_cmd_publish_auth(ngx_rtmp_session_t *s, const char *name, const char *a
     ngx_memcpy(p, args, ngx_strlen(args));
     p += ngx_strlen(args);
     on = p-tori;
-    printf("CCCCC len:%ld tori:%s\n", on, tori);
+    //printf("CCCCC len:%ld tori:%s\n", on, tori);
+    ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "ngx_rtmp_cmd_publish_auth tori:%s", tori);
     
     file.name = nacf->auth_file;
     file.log = NULL;
     if ( file.name.len == 0 ) {
-        printf("NNNNN file not exit[%s]\n", file.name.data);
+        //printf("NNNNN file not exit[%s]\n", file.name.data);
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "ngx_rtmp_cmd_publish_auth file[%V] not exit", &file.name);
         return ret;
     }
     file.fd = ngx_open_file(file.name.data, NGX_FILE_RDONLY,
             NGX_FILE_OPEN, NGX_FILE_DEFAULT_ACCESS);
     if (file.fd == NGX_INVALID_FILE) {
-        printf("LLLLL ngx_open_file NGX_INVALID_FILE\n");
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "ngx_rtmp_cmd_publish_auth file[%V] open error", &file.name);
         return ret;
     }
     
@@ -1440,11 +1443,12 @@ ngx_rtmp_cmd_publish_auth(ngx_rtmp_session_t *s, const char *name, const char *a
     while (tn < n) {
         if (tbuf[tn] == ';' || tbuf[tn] == '\n') {
             cbuf[cn] = '\0';
-            printf("##### %ld %s:one\n", cn, cbuf);
+            //printf("##### %ld %s:one\n", cn, cbuf);
             
             if( cn == on && !ngx_strncmp(cbuf, tori, cn>on?on:cn) ){
                 ret = 0;
-                printf("CCCCC auth Success!\n");
+                //printf("CCCCC auth Success!\n");
+                ngx_log_error(NGX_LOG_INFO, s->connection->log, 0, "ngx_rtmp_cmd_publish_auth auth Success");
                 goto exit;
             }
             cn = 0;
@@ -1456,7 +1460,8 @@ ngx_rtmp_cmd_publish_auth(ngx_rtmp_session_t *s, const char *name, const char *a
 exit:
     
     if (ngx_close_file(file.fd) == NGX_FILE_ERROR) { 
-        printf("LLLLL ngx_close_file NGX_FILE_ERROR\n");
+        //printf("LLLLL ngx_close_file NGX_FILE_ERROR\n");
+        ngx_log_error(NGX_LOG_ERR, s->connection->log, 0, "ngx_rtmp_cmd_publish_auth file[%V] close error", &file.name);
     }
     return ret;
 }
